@@ -8,6 +8,10 @@ var cors = require('cors');
 
 app.use(cors({ optionsSuccessStatus: 200 }));
 
+// Parse URL-encoded POST data
+app.use(express.urlencoded({ extended: false }));
+
+// Serve static files
 app.use(express.static('public'));
 
 // Home page
@@ -15,21 +19,59 @@ app.get("/", function (req, res) {
   res.sendFile(__dirname + '/views/index.html');
 });
 
-// Request Header Parser API
-app.get("/api/whoami", function (req, res) {
-  var ipaddress =
-    req.headers['x-forwarded-for'] ||
-    req.socket.remoteAddress;
+// Store shortened URLs
+var urls = [];
+var nextId = 1;
 
-  if (ipaddress && ipaddress.includes(',')) {
-    ipaddress = ipaddress.split(',')[0].trim();
+// Create a short URL
+app.post("/api/shorturl", function (req, res) {
+  var originalUrl = req.body.url;
+
+  try {
+    var parsedUrl = new URL(originalUrl);
+
+    // Only allow http and https URLs
+    if (
+      parsedUrl.protocol !== "http:" &&
+      parsedUrl.protocol !== "https:"
+    ) {
+      throw new Error();
+    }
+
+    var shortUrl = nextId++;
+
+    urls.push({
+      original_url: originalUrl,
+      short_url: shortUrl
+    });
+
+    res.json({
+      original_url: originalUrl,
+      short_url: shortUrl
+    });
+
+  } catch (error) {
+    res.json({
+      error: "invalid url"
+    });
+  }
+});
+
+// Redirect short URL to original URL
+app.get("/api/shorturl/:short_url", function (req, res) {
+  var shortUrl = Number(req.params.short_url);
+
+  var url = urls.find(function (item) {
+    return item.short_url === shortUrl;
+  });
+
+  if (!url) {
+    return res.json({
+      error: "No short URL found for the given input"
+    });
   }
 
-  res.json({
-    ipaddress: ipaddress,
-    language: req.headers['accept-language'],
-    software: req.headers['user-agent']
-  });
+  res.redirect(url.original_url);
 });
 
 // Listen on port set in environment variable or default to 3000
