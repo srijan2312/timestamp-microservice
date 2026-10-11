@@ -1,53 +1,34 @@
 // index.js
 // where your node app starts
 
-// init project
 var express = require('express');
 var app = express();
 
-// enable CORS (https://en.wikipedia.org/wiki/Cross-origin_resource_sharing)
-// so that your API is remotely testable by FCC
 var cors = require('cors');
+
 app.use(cors({ optionsSuccessStatus: 200 }));
 
-// http://expressjs.com/en/starter/static-files.html
 app.use(express.static('public'));
 
-// http://expressjs.com/en/starter/basic-routing.html
+// Home page
 app.get("/", function (req, res) {
   res.sendFile(__dirname + '/views/index.html');
 });
 
-// Timestamp API
-app.get("/api/:date?", function (req, res) {
-  var date;
+// Request Header Parser API
+app.get("/api/whoami", function (req, res) {
+  var ipaddress =
+    req.headers['x-forwarded-for'] ||
+    req.socket.remoteAddress;
 
-  // No date provided -> current time
-  if (!req.params.date) {
-    date = new Date();
-  } else {
-    var dateString = req.params.date;
-
-    // If the date is a Unix timestamp, convert it to a Number
-    if (/^\d+$/.test(dateString)) {
-      date = new Date(Number(dateString));
-    } else {
-      // Otherwise, parse it as a normal date string
-      date = new Date(dateString);
-    }
-
-    // Check for invalid date
-    if (isNaN(date.getTime())) {
-      return res.json({
-        error: "Invalid Date"
-      });
-    }
+  if (ipaddress && ipaddress.includes(',')) {
+    ipaddress = ipaddress.split(',')[0].trim();
   }
 
-  // Return Unix timestamp and UTC date
   res.json({
-    unix: date.getTime(),
-    utc: date.toUTCString()
+    ipaddress: ipaddress,
+    language: req.headers['accept-language'],
+    software: req.headers['user-agent']
   });
 });
 
